@@ -1,0 +1,34 @@
+# Telegram Music Downloader Configuration
+
+telegram:
+  api_id: API ID  # Your API ID from my.telegram.org
+  api_hash: "API Hash"  # Your API Hash
+  session_name: "session"
+  two_factor_auth: true  # Enable if you have 2FA
+
+channels:
+  - -0000000000000
+
+download:
+  output_dir: "./data/downloads"
+  timeout_between_messages: 0.3  # Pause between messages (seconds)
+  max_files_per_run: 100  # Maximum files to download per run (0 = unlimited)
+
+naming:
+  template: "{original_name}__{message_id}"
+  date_format: "%Y%m%d_%H%M%S"
+
+filters:
+  file_types: ["audio", "document"]  # audio for audio files, document for files
+  formats: [".flac", ".wav", ".aiff", ".m4a", ".mp3"]
+  size:
+    min_mb: 1     # Minimum file size in MB
+    max_mb: 500   # Maximum file size in MB
+  date:
+    from: "2025-01-01"  # Download messages from this date (YYYY-MM-DD)
+    to: null            # Until current date (null = no limit)
+
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "./data/logs/downloader.log"
+  console: true
