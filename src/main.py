@@ -187,7 +187,7 @@ class TelegramMusicDownloader:
                         break
                         
                 else:
-                    self.logger.info(f"Filtered out: {media_info['filename']}")
+                    self.logger.info(f"→ Filtered out: {media_info['filename']}")
             
             self.logger.info(f"Channel {channel_name} completed: "
                         f"{channel_result['files_downloaded']} downloaded, "
