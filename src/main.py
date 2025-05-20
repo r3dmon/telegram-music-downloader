@@ -35,7 +35,7 @@ class TelegramMusicDownloader:
         self.file_tracker = create_file_tracker(self.config)
         self.media_filter = create_media_filter(self.config)
         
-        # Will be initialized after connection
+        # Components to be initialized after client connection
         self.client = None
         self.parser = None
         self.downloader = None
@@ -89,19 +89,19 @@ class TelegramMusicDownloader:
             # Process each channel
             files_downloaded_total = 0
             for channel_name, entity in entities:
-                # Проверяем общий лимит скачиваний для всех каналов
+                # Check overall download limit for all channels
                 if max_files > 0 and files_downloaded_total >= max_files:
-                    self.logger.info(f"Reached maximum files limit ({max_files}), stopping")
+                    self.logger.info(f"Reached overall maximum files limit ({max_files}), stopping")
                     break
                 
-                # Вычисляем сколько файлов осталось скачать для данного канала
-                remaining_files = max_files - files_downloaded_total if max_files > 0 else 0
+                # Calculate remaining files to download for the current channel session
+                remaining_for_channel = max_files - files_downloaded_total if max_files > 0 else 0 # Limit for this channel processing iteration
                 
-                # Обрабатываем канал
+                # Process channel
                 channel_result = await self._process_channel(
                     channel_name, 
                     entity, 
-                    remaining_files
+                    remaining_for_channel # Pass the calculated remaining files for this specific channel run
                 )
                 
                 session_results['channels_details'].append(channel_result)
@@ -140,66 +140,54 @@ class TelegramMusicDownloader:
             if stats:
                 self.logger.info(f"Channel stats: {stats['media_messages']} media files in last 100 messages")
             
-            # Устанавливаем счетчики для контроля лимита
-            files_processed = 0
-            files_downloaded = 0
+            # Counters for controlling the limit within this channel processing
+            files_processed_in_channel = 0
+            files_downloaded_in_channel = 0
             
-            # Последовательно обрабатываем сообщения 
+            # Process messages sequentially 
             async for media_info in self.parser.parse_messages(entity):
-                # Увеличиваем счетчик обработанных файлов
-                files_processed += 1
+                files_processed_in_channel += 1
                 
-                # Применяем фильтры
                 if self.media_filter.should_process_media(media_info):
                     channel_result['files_found'] += 1
                     
-                    # Формируем информацию о длительности и размере
-                    file_info = ""
-                    
-                    # Добавляем информацию о длительности, если доступна
+                    # Prepare file info string (duration and size) for logging
+                    file_info_log_str = ""
                     duration_str = ""
                     if media_info.get('audio_meta') and media_info['audio_meta'].get('duration'):
                         duration = media_info['audio_meta']['duration']
-                        minutes = duration // 60
-                        seconds = duration % 60
+                        minutes, seconds = divmod(duration, 60)
                         duration_str = f"[{minutes:02d}:{seconds:02d}]"
                     
-                    # Добавляем информацию о размере файла
                     file_size_mb = media_info['file_size'] / (1024 * 1024)
                     size_str = f"[{file_size_mb:.1f} MB]"
                     
-                    # Комбинируем информацию с пробелом между частями
                     if duration_str and size_str:
-                        file_info = f"{duration_str} {size_str}"
+                        file_info_log_str = f"{duration_str} {size_str}"
                     else:
-                        file_info = f"{duration_str}{size_str}"
+                        file_info_log_str = f"{duration_str}{size_str}" # Handles if one is empty
                     
-                    # Логируем начало скачивания - эту информацию должен отображать main.py
-                    self.logger.info(f"Downloading file: {media_info['filename']} {file_info}")
+                    self.logger.info(f"Attempting to download: {media_info['filename']} {file_info_log_str}")
                     
-                    # Используем улучшенный метод download_media_file с передачей file_info
-                    download_result = await self.downloader.download_media_file(media_info, file_info)
+                    download_result = await self.downloader.download_media_file(media_info, file_info_log_str)
                     
-                    # Обрабатываем результат скачивания без дублирования логов
+                    # Process download result; detailed logs are in downloader.py
                     if download_result['status'] == 'success':
                         channel_result['files_downloaded'] += 1
                         channel_result['downloaded_files'].append(download_result['file_path'])
-                        files_downloaded += 1
-                        # Не дублируем лог, так как он уже есть в downloader.py
+                        files_downloaded_in_channel += 1
                     elif download_result['status'] == 'skipped':
                         channel_result['files_skipped'] += 1
-                        # Не дублируем лог, так как он уже есть в downloader.py
-                    else:  # failed
+                    else:  # 'failed'
                         channel_result['files_failed'] += 1
-                        # Не дублируем лог, так как он уже есть в downloader.py
                     
-                    # Проверяем, достигли ли мы лимита скачиваний
-                    if max_files > 0 and files_downloaded >= max_files:
-                        self.logger.info(f"Reached file limit ({max_files}) for channel {channel_name}")
+                    # Check if the download limit for this channel processing iteration has been reached
+                    if max_files > 0 and files_downloaded_in_channel >= max_files:
+                        self.logger.info(f"Reached file limit ({max_files}) for channel {channel_name} in this run.")
                         break
                         
                 else:
-                    self.logger.info(f"→ Filtered out: {media_info['filename']}")
+                    self.logger.info(f"Filtered out: {media_info['filename']}")
             
             self.logger.info(f"Channel {channel_name} completed: "
                         f"{channel_result['files_downloaded']} downloaded, "
@@ -209,7 +197,7 @@ class TelegramMusicDownloader:
             return channel_result
             
         except Exception as e:
-            self.logger.error(f"✗ Error processing channel {channel_name}: {e}")
+            self.logger.error(f"Error processing channel {channel_name}: {e}")
             raise
     
     async def show_statistics(self):
@@ -253,7 +241,7 @@ class TelegramMusicDownloader:
 async def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(description="Telegram Music Downloader")
-    parser.add_argument("--config", "-c", default="config.yaml", help="Config file path")
+    parser.add_argument("--config", "-c", default="src/config.yaml", help="Config file path")
     parser.add_argument("--max-files", "-m", type=int, default=0, help="Maximum files to download (0 = unlimited)")
     parser.add_argument("--stats", "-s", action="store_true", help="Show statistics only")
     parser.add_argument("--cleanup", action="store_true", help="Clean up tracker from missing files")
@@ -262,7 +250,7 @@ async def main():
     
     # Check if config exists
     if not Path(args.config).exists():
-        print(f"❌ Config file not found: {args.config}")
+        print(f"Config file not found: {args.config}")
         print("Create config.yaml with your Telegram credentials and channel list")
         sys.exit(1)
     
@@ -298,9 +286,9 @@ async def main():
             print(f"Files failed: {results['total_files_failed']}")
             
     except KeyboardInterrupt:
-        print("\n\n⚠️  Download interrupted by user")
+        print("\nInterrupted by user. Exiting...")
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\nError: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
@@ -310,4 +298,14 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        print("\nInterrupted by user. Exiting...")
+    except RuntimeError as e:
+        if "Event loop is closed" not in str(e):
+            # Re-raise exception if it's not the common "Event loop is closed" on Ctrl+C
+            raise
+        else:
+            # Silently pass if it's the known issue on Windows during Ctrl+C shutdown
+            pass 

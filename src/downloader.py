@@ -32,7 +32,7 @@ class TelegramDownloader:
                 'status': 'skipped',
                 'reason': skip_reason,
                 'file_path': None,
-                'logged': True  # Отмечаем, что сообщение уже залогировано
+                'logged': True  # Indicates the message has already been logged by the tracker
             }
         
         try:
@@ -40,13 +40,13 @@ class TelegramDownloader:
             filename = self._generate_filename(media_info)
             file_path = self.download_dir / filename
             
-            # Проверка существования файла с таким же именем (независимо от сообщения)
+            # Check if a file with the same name already exists (regardless of the message)
             if file_path.exists():
-                # Проверяем, существует ли файл физически
+                # Physical file existence check
                 skip_reason = f"File with same name already exists: {file_path}"
                 self.logger.info(f"→ Skipping file: {media_info['filename']} {file_info} - {skip_reason}")
                 
-                # Возвращаем информацию, что файл пропущен из-за существующего имени
+                # Return info that file was skipped due to existing name
                 return {
                     'status': 'skipped',
                     'reason': skip_reason,
@@ -55,7 +55,7 @@ class TelegramDownloader:
                 }
             
             # Download file from Telegram
-            # Теперь нет необходимости логировать здесь, так как это делается в main.py
+            # Logging for download initiation is now handled in main.py
             
             # Create message object for download
             message = await self._get_message_by_id(media_info)

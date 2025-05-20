@@ -17,7 +17,7 @@ class RobustLogger:
         self._file_handler = None
         self._console_handler = None
         self._last_health_check = 0
-        self._health_check_interval = 30  # секунды
+        self._health_check_interval = 30  # seconds
     
     @classmethod
     def get_instance(cls, name: str = "telegram_music_downloader"):
@@ -29,79 +29,78 @@ class RobustLogger:
     
     def setup(self, level: str = "INFO", log_file: Optional[str] = None, 
               console: bool = True, max_file_size: int = 10) -> logging.Logger:
-        """Настройка логирования с защитой от сбоев"""
+        """Configure logging with fallback mechanisms and specific setup for 'downloader' logger."""
         log_level = getattr(logging, level.upper(), logging.INFO)
         
         with self._lock:
-            # Очистка существующих handlers
+            # Clear existing handlers for this logger instance
             self._clear_handlers()
             
-            # Настройка корневого логгера для влияния на все модули
+            # Configure root logger minimally to avoid interference
             root_logger = logging.getLogger()
             
-            # Очистка существующих обработчиков в корневом логгере
+            # Clear any existing handlers from the root logger to prevent duplication
             for handler in root_logger.handlers[:]:
                 root_logger.removeHandler(handler)
             
-            # ВАЖНОЕ ИЗМЕНЕНИЕ: Устанавливаем уровень корневого логгера чуть выше,
-            # чтобы он не дублировал сообщения из явно настроенных логгеров
-            root_logger.setLevel(logging.WARNING)
+            # IMPORTANT: Set root logger level higher (e.g., WARNING) to prevent it
+            # from processing and duplicating logs from more specific, lower-level loggers.
+            root_logger.setLevel(logging.WARNING) # Prevents root from handling INFO/DEBUG from our loggers
             
-            # Форматтер
             formatter = logging.Formatter(
                 fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                 datefmt='%Y-%m-%d %H:%M:%S'
             )
             
-            # Установка уровня для конкретного логгера
+            # Set level for the specific logger (e.g., 'telegram_music_downloader')
             self.logger.setLevel(log_level)
             
-            # Важно: отключаем распространение логов от конкретного логгера к родителям
+            # Important: disable log propagation from this specific logger to the root logger
+            # to avoid duplicate messages if root also has handlers.
             self.logger.propagate = False
             
-            # Настраиваем логгер для модуля downloader
+            # Configure a separate logger specifically for the 'downloader' module
             downloader_logger = logging.getLogger('downloader')
             downloader_logger.setLevel(log_level)
-            downloader_logger.propagate = False  # Важно!
+            downloader_logger.propagate = False  # Important! Prevent double logging by root
             
-            # Консольный handler для конкретных логгеров
+            # Console handler setup for both loggers
             if console:
-                self._setup_console_handler(log_level, formatter)
+                self._setup_console_handler(log_level, formatter) # Adds to self.logger
                 
-                # Добавляем такой же обработчик к логгеру downloader
-                console_handler = logging.StreamHandler(sys.stdout)
-                console_handler.setLevel(log_level)
-                console_handler.setFormatter(formatter)
-                downloader_logger.addHandler(console_handler)
+                # Add a similar console handler to the 'downloader' logger
+                # to ensure it also outputs to console if self.logger does.
+                console_handler_for_downloader = logging.StreamHandler(sys.stdout)
+                console_handler_for_downloader.setLevel(log_level)
+                console_handler_for_downloader.setFormatter(formatter)
+                downloader_logger.addHandler(console_handler_for_downloader)
             
-            # Файловый handler с ротацией
+            # File handler with rotation for both loggers
             if log_file:
-                self._setup_file_handler(log_file, log_level, formatter, max_file_size)
+                self._setup_file_handler(log_file, log_level, formatter, max_file_size) # Adds to self.logger
                 
-                # Добавляем такой же файловый обработчик к логгеру downloader
-                log_path = Path(log_file)
-                log_path.parent.mkdir(parents=True, exist_ok=True)
+                # Add a similar file handler to the 'downloader' logger
+                log_path_for_downloader = Path(log_file) # Ensure path is prepared
+                log_path_for_downloader.parent.mkdir(parents=True, exist_ok=True)
                 
-                # RotatingFileHandler для автоматической ротации
-                max_bytes = max_file_size * 1024 * 1024  # MB в байты
-                file_handler = RotatingFileHandler(
+                max_bytes = max_file_size * 1024 * 1024  # MB to bytes
+                file_handler_for_downloader = RotatingFileHandler(
                     log_file, 
                     maxBytes=max_bytes,
                     backupCount=5,
                     encoding='utf-8'
                 )
                 
-                file_handler.setLevel(log_level)
-                file_handler.setFormatter(formatter)
-                downloader_logger.addHandler(file_handler)
+                file_handler_for_downloader.setLevel(log_level)
+                file_handler_for_downloader.setFormatter(formatter)
+                downloader_logger.addHandler(file_handler_for_downloader)
             
-            # Тест записи
             self._test_logging()
             
             return self.logger
     
     def _clear_handlers(self):
-        """Безопасная очистка handlers"""
+        """Safely clear existing handlers from this logger instance."""
         for handler in self.logger.handlers[:]:
             try:
                 handler.flush()
@@ -114,7 +113,7 @@ class RobustLogger:
         self._console_handler = None
     
     def _setup_console_handler(self, log_level, formatter):
-        """Настройка консольного handler"""
+        """Setup console handler for this logger instance."""
         try:
             self._console_handler = logging.StreamHandler(sys.stdout)
             self._console_handler.setLevel(log_level)
@@ -124,13 +123,13 @@ class RobustLogger:
             print(f"Warning: Failed to setup console logging: {e}", file=sys.stderr)
     
     def _setup_file_handler(self, log_file: str, log_level, formatter, max_file_size: int):
-        """Настройка файлового handler с ротацией"""
+        """Setup file handler with rotation for this logger instance."""
         try:
             log_path = Path(log_file)
             log_path.parent.mkdir(parents=True, exist_ok=True)
             
-            # RotatingFileHandler для автоматической ротации
-            max_bytes = max_file_size * 1024 * 1024  # MB в байты
+            # RotatingFileHandler for automatic rotation
+            max_bytes = max_file_size * 1024 * 1024  # MB to bytes
             self._file_handler = RotatingFileHandler(
                 log_file, 
                 maxBytes=max_bytes,
@@ -146,7 +145,7 @@ class RobustLogger:
             self._log_to_console(f"Warning: Failed to setup file logging: {e}")
     
     def _test_logging(self):
-        """Тест работоспособности логирования"""
+        """Test logging functionality after setup."""
         try:
             self.logger.info("Logger initialized successfully")
             self._force_flush()
@@ -154,29 +153,29 @@ class RobustLogger:
             self._log_to_console(f"Warning: Logger test failed: {e}")
     
     def _force_flush(self):
-        """Принудительная очистка буферов"""
+        """Force flush all handler buffers for this logger instance."""
         for handler in self.logger.handlers:
             try:
                 handler.flush()
             except Exception:
-                pass
+                pass # Ignore errors on flush
     
     def _log_to_console(self, message: str):
-        """Аварийное логирование в консоль"""
+        """Emergency logging to console if regular logging fails."""
         try:
             print(f"[LOGGER] {message}", file=sys.stderr)
         except Exception:
-            pass
+            pass # Utmost effort, but if this fails, nothing more can be done
     
     def health_check(self):
-        """Проверка здоровья системы логирования"""
+        """Periodically check the health of the logging system, especially the file handler."""
         current_time = time.time()
         
         if current_time - self._last_health_check < self._health_check_interval:
-            return True
+            return True # Skip check if done recently
         
         try:
-            # Проверка файлового handler
+            # Primarily check the file handler as it's most prone to external issues
             if self._file_handler:
                 test_record = logging.LogRecord(
                     name=self.logger.name,
@@ -196,26 +195,26 @@ class RobustLogger:
             
         except Exception as e:
             self._log_to_console(f"Logger health check failed: {e}")
-            # Попытка пересоздать файловый handler
+            # Attempt to rebuild the file handler
             self._rebuild_file_handler()
             return False
     
     def _rebuild_file_handler(self):
-        """Пересоздание файлового handler при сбоях"""
+        """Attempt to rebuild the file handler if it failed."""
         if not self._file_handler:
             return
         
         try:
-            # Сохранить параметры
+            # Save parameters
             log_file = self._file_handler.baseFilename
             log_level = self._file_handler.level
             formatter = self._file_handler.formatter
             
-            # Удалить старый handler
+            # Remove old handler
             self.logger.removeHandler(self._file_handler)
             self._file_handler.close()
             
-            # Создать новый
+            # Create new
             self._file_handler = RotatingFileHandler(
                 log_file,
                 maxBytes=10*1024*1024,
@@ -234,13 +233,13 @@ class RobustLogger:
             self._file_handler = None
     
     def get_logger(self) -> logging.Logger:
-        """Получение логгера с проверкой здоровья"""
+        """Get the logger instance with health check."""
         self.health_check()
         return self.logger
 
 
 def setup_logging(config_loader) -> logging.Logger:
-    """Настройка логирования из конфига с улучшенной обработкой ошибок"""
+    """Setup and return a configured RobustLogger instance based on ConfigLoader settings."""
     logger_instance = RobustLogger.get_instance()
     
     log_level = config_loader.get_log_level()
@@ -251,7 +250,7 @@ def setup_logging(config_loader) -> logging.Logger:
         level=log_level,
         log_file=log_file,
         console=console_enabled,
-        max_file_size=10  # 10 MB перед ротацией
+        max_file_size=10  # 10 MB before rotation
     )
     
     logger.info(f"Robust logger initialized - Level: {log_level}, File: {log_file}, Console: {console_enabled}")
