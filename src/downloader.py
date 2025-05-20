@@ -10,7 +10,7 @@ class TelegramDownloader:
     def __init__(self, client, config_loader, file_tracker):
         self.client = client
         self.config = config_loader
-        self.tracker = file_tracker
+        self.file_tracker = file_tracker
         self.logger = logging.getLogger(__name__)
         
         # Get configuration settings
@@ -25,7 +25,7 @@ class TelegramDownloader:
         """Download media file from Telegram and return result with status and details"""
         
         # Check if file should be skipped based on tracker
-        should_skip, skip_reason = self.tracker.should_skip_file(media_info)
+        should_skip, skip_reason = self.file_tracker.should_skip_file(media_info)
         if should_skip:
             self.logger.info(f"→ Skipping file: {media_info['filename']} {file_info} - {skip_reason}")
             return {
@@ -78,8 +78,8 @@ class TelegramDownloader:
                 # Update media_info with download date
                 media_info['download_date'] = datetime.now()
                 
-                # Track downloaded file
-                file_hash = self.tracker.track_downloaded_file(media_info, str(file_path))
+                # Track downloaded file в file_tracker
+                file_hash = self.file_tracker.track_downloaded_file(media_info, str(file_path))
                 
                 self.logger.info(f"✓ Downloaded successfully: {filename} {file_info} (hash: {file_hash[:8]}...)")
                 
@@ -103,7 +103,7 @@ class TelegramDownloader:
             self.logger.error(f"✗ Download error for {media_info['filename']} {file_info}: {e}")
             # Add to blacklist on persistent errors
             if "flood" in str(e).lower() or "timeout" in str(e).lower():
-                self.tracker.add_blacklisted_file(
+                self.file_tracker.add_blacklisted_file(
                     media_info['message_id'], 
                     f"Download error: {str(e)[:100]}"
                 )
@@ -242,12 +242,13 @@ class TelegramDownloader:
     
     def get_download_statistics(self) -> Dict[str, Any]:
         """Get download statistics"""
-        tracker_stats = self.tracker.get_statistics()
+        file_stats = self.file_tracker.get_statistics()
         
         return {
             'download_directory': str(self.download_dir),
             'naming_template': self.naming_template,
-            **tracker_stats
+            'total_downloaded_files': file_stats['total_downloaded_files'],
+            'total_blacklisted_files': file_stats['total_blacklisted_files']
         }
 
 

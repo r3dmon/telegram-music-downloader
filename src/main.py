@@ -17,7 +17,7 @@ from client import create_client
 from session_manager import create_session_manager
 from message_parser import create_message_parser
 from media_filter import create_media_filter
-from tracker import create_file_tracker
+from tracker import create_message_tracker, create_file_tracker
 from downloader import create_downloader
 
 
@@ -32,6 +32,7 @@ class TelegramMusicDownloader:
         
         # Initialize components
         self.session_manager = create_session_manager(self.config)
+        self.message_tracker = create_message_tracker(self.config)
         self.file_tracker = create_file_tracker(self.config)
         self.media_filter = create_media_filter(self.config)
         
@@ -63,6 +64,7 @@ class TelegramMusicDownloader:
             'total_files_downloaded': 0,
             'total_files_skipped': 0,
             'total_files_failed': 0,
+            'total_messages_processed': 0,
             'channels_details': []
         }
         
@@ -110,6 +112,7 @@ class TelegramMusicDownloader:
                 session_results['total_files_downloaded'] += channel_result['files_downloaded']
                 session_results['total_files_skipped'] += channel_result['files_skipped']
                 session_results['total_files_failed'] += channel_result['files_failed']
+                session_results['total_messages_processed'] += channel_result['messages_processed']
                 
                 files_downloaded_total += channel_result['files_downloaded']
             
@@ -124,17 +127,28 @@ class TelegramMusicDownloader:
         """Process single channel - parse, filter, and download files"""
         self.logger.info(f"Processing channel: {channel_name} ({entity.title})")
         
+        # Получаем ID канала
+        channel_id = str(entity.id)
+        
         channel_result = {
             'channel_name': channel_name,
             'channel_title': entity.title,
+            'channel_id': channel_id,
             'files_found': 0,
             'files_downloaded': 0,
             'files_skipped': 0,
             'files_failed': 0,
-            'downloaded_files': []
+            'messages_processed': 0,
+            'downloaded_files': [],
+            'last_processed_id': None
         }
         
         try:
+            # Получаем последний обработанный ID для этого канала из message_tracker
+            last_processed_id = self.message_tracker.get_last_processed_id(channel_id)
+            if last_processed_id:
+                self.logger.info(f"Continuing from last processed message ID: {last_processed_id}")
+            
             # Get channel statistics first
             stats = await self.parser.get_channel_stats(entity)
             if stats:
@@ -143,23 +157,40 @@ class TelegramMusicDownloader:
             # Counters for controlling the limit within this channel processing
             files_processed_in_channel = 0
             files_downloaded_in_channel = 0
+            messages_processed = 0
             
-            # Process messages sequentially 
-            async for media_info in self.parser.parse_messages(entity):
-                files_processed_in_channel += 1
+            # Process messages sequentially from oldest to newest, starting after last_processed_id
+            async for message_info in self.parser.parse_messages(entity, last_processed_id=last_processed_id):
+                messages_processed += 1
+                channel_result['messages_processed'] += 1
                 
-                if self.media_filter.should_process_media(media_info):
+                # Обновляем последний обработанный ID сообщения и отмечаем сообщение как обработанное
+                message_id = message_info['message_id']
+                self.message_tracker.mark_message_processed(channel_id, message_id)
+                channel_result['last_processed_id'] = message_id
+                
+                # Если сообщение не содержит медиа, пропускаем обработку файла
+                if not message_info.get('has_media', False):
+                    self.logger.debug(f"Skipping message {message_id} - no media")
+                    continue
+                
+                # Проверяем наличие всех необходимых полей для обработки медиа
+                if 'filename' not in message_info or 'file_size' not in message_info or 'type' not in message_info:
+                    self.logger.debug(f"Skipping message {message_id} - missing required media fields")
+                    continue
+                
+                if self.media_filter.should_process_media(message_info):
                     channel_result['files_found'] += 1
                     
                     # Prepare file info string (duration and size) for logging
                     file_info_log_str = ""
                     duration_str = ""
-                    if media_info.get('audio_meta') and media_info['audio_meta'].get('duration'):
-                        duration = media_info['audio_meta']['duration']
+                    if message_info.get('audio_meta') and message_info['audio_meta'].get('duration'):
+                        duration = message_info['audio_meta']['duration']
                         minutes, seconds = divmod(duration, 60)
                         duration_str = f"[{minutes:02d}:{seconds:02d}]"
                     
-                    file_size_mb = media_info['file_size'] / (1024 * 1024)
+                    file_size_mb = message_info['file_size'] / (1024 * 1024)
                     size_str = f"[{file_size_mb:.1f} MB]"
                     
                     if duration_str and size_str:
@@ -167,9 +198,9 @@ class TelegramMusicDownloader:
                     else:
                         file_info_log_str = f"{duration_str}{size_str}" # Handles if one is empty
                     
-                    self.logger.info(f"Attempting to download: {media_info['filename']} {file_info_log_str}")
+                    self.logger.info(f"Attempting to download: {message_info['filename']} {file_info_log_str}")
                     
-                    download_result = await self.downloader.download_media_file(media_info, file_info_log_str)
+                    download_result = await self.downloader.download_media_file(message_info, file_info_log_str)
                     
                     # Process download result; detailed logs are in downloader.py
                     if download_result['status'] == 'success':
@@ -185,14 +216,12 @@ class TelegramMusicDownloader:
                     if max_files > 0 and files_downloaded_in_channel >= max_files:
                         self.logger.info(f"Reached file limit ({max_files}) for channel {channel_name} in this run.")
                         break
-                        
-                else:
-                    self.logger.info(f"→ Filtered out: {media_info['filename']}")
             
             self.logger.info(f"Channel {channel_name} completed: "
                         f"{channel_result['files_downloaded']} downloaded, "
                         f"{channel_result['files_skipped']} skipped, "
-                        f"{channel_result['files_failed']} failed")
+                        f"{channel_result['files_failed']} failed, "
+                        f"{channel_result['messages_processed']} messages processed")
             
             return channel_result
             
@@ -204,11 +233,10 @@ class TelegramMusicDownloader:
         """Display current statistics"""
         print("\n=== Download Statistics ===")
         
-        # Tracker statistics
-        tracker_stats = self.file_tracker.get_statistics()
-        print(f"Total processed messages: {tracker_stats['total_processed_messages']}")
-        print(f"Total downloaded files: {tracker_stats['total_downloaded_files']}")
-        print(f"Total blacklisted files: {tracker_stats['total_blacklisted_files']}")
+        # Get file tracker statistics
+        file_stats = self.file_tracker.get_statistics()
+        print(f"Total downloaded files: {file_stats['total_downloaded_files']}")
+        print(f"Total blacklisted files: {file_stats['total_blacklisted_files']}")
         
         # Download statistics
         if self.downloader:
@@ -280,6 +308,7 @@ async def main():
             # Show final results
             print(f"\n=== Session Results ===")
             print(f"Channels processed: {results['channels_processed']}")
+            print(f"Messages processed: {results['total_messages_processed']}")
             print(f"Files found: {results['total_files_found']}")
             print(f"Files downloaded: {results['total_files_downloaded']}")
             print(f"Files skipped: {results['total_files_skipped']}")
@@ -308,4 +337,4 @@ if __name__ == "__main__":
             raise
         else:
             # Silently pass if it's the known issue on Windows during Ctrl+C shutdown
-            pass 
+            pass

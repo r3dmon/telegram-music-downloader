@@ -28,14 +28,46 @@ class MessageParser:
         
         return entities
     
-    async def parse_messages(self, entity, limit: Optional[int] = None) -> AsyncIterator[Dict]:
-        """Parse messages from channel and extract media info"""
+    async def parse_messages(self, entity, last_processed_id: Optional[int] = None, limit: Optional[int] = None) -> AsyncIterator[Dict]:
+        """
+        Parse messages from channel and extract media info (from oldest to newest)
+        
+        Args:
+            entity: Channel entity
+            last_processed_id: Last processed message ID (if any)
+            limit: Maximum number of messages to process
+            
+        Returns:
+            AsyncIterator with message info dictionaries
+        """
         file_types = self.config.get_file_types()
         timeout = self.config.get_message_timeout()
         
         try:
+            # Определяем параметры для iter_messages
+            kwargs = {
+                'limit': limit,
+                'reverse': True  # От старых к новым
+            }
+            
+            # Получаем дату фильтрации из конфига
+            date_filter = self.config.get_date_filter()
+            date_from = date_filter.get('from')  # Это уже объект datetime или None
+            
+            # Если есть last_processed_id, используем его (приоритет над датой)
+            if last_processed_id is not None and isinstance(last_processed_id, int) and last_processed_id > 0:
+                kwargs['min_id'] = last_processed_id
+                self.logger.info(f"Parsing messages from channel {entity.title} starting after message ID {last_processed_id}")
+            # Если нет last_processed_id, но есть date_from, используем дату
+            elif date_from is not None:
+                kwargs['offset_date'] = date_from  # Telethon ожидает datetime объект
+                self.logger.info(f"Parsing messages from channel {entity.title} starting from date {date_from.strftime('%Y-%m-%d')}")
+            else:
+                self.logger.info(f"Parsing messages from channel {entity.title} from the beginning")
+            
             message_count = 0
-            async for message in self.client.iter_messages(entity, limit=limit):
+            # Используем kwargs для передачи аргументов
+            async for message in self.client.iter_messages(entity, **kwargs):
                 message_count += 1
                 
                 # Apply timeout between message processing
@@ -43,19 +75,34 @@ class MessageParser:
                     self.logger.debug(f"Waiting {timeout}s before processing next message...")
                     await asyncio.sleep(timeout)
                 
+                # Базовая информация о сообщении, присутствует всегда
+                message_info = {
+                    'message_id': message.id,
+                    'channel_id': str(entity.id),
+                    'publish_date': message.date,
+                    'has_media': bool(message.media),
+                }
+                
+                # Если сообщение без медиа, просто отдаем базовую информацию
                 if not message.media:
+                    self.logger.debug(f"Message {message.id} has no media")
+                    yield message_info
                     continue
                 
+                # Извлекаем информацию о медиа
                 media_info = await self._extract_media_info(message)
                 if not media_info:
+                    self.logger.debug(f"Failed to extract media info from message {message.id}")
+                    yield message_info
                     continue
                 
-                # Check if media type is in allowed types
-                if media_info['type'] not in file_types:
-                    continue
+                # Объединяем базовую информацию и данные о медиа
+                full_info = {**message_info, **media_info}
                 
-                self.logger.debug(f"Found media: {media_info['filename']} ({media_info['type']})")
-                yield media_info
+                # Отладочное сообщение
+                self.logger.debug(f"Found media in message {message.id}: {full_info.get('filename', 'unknown')} ({full_info.get('type', 'unknown')})")
+                
+                yield full_info
                 
         except RpcMcgetFailError as e:
             self.logger.warning(f"Telegram internal issues: {e}")
@@ -107,13 +154,10 @@ class MessageParser:
                 break
         
         return {
-            'message_id': message.id,
             'filename': filename,
             'file_size': document.size,
             'mime_type': document.mime_type,
             'type': media_type,
-            'publish_date': message.date,
-            'download_date': None,  # Will be set when downloaded
             'audio_meta': audio_meta,
             'document_id': document.id,
             'access_hash': document.access_hash,

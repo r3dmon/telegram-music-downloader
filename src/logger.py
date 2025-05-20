@@ -246,12 +246,46 @@ def setup_logging(config_loader) -> logging.Logger:
     log_file = config_loader.get_log_file()
     console_enabled = config_loader.is_console_logging_enabled()
     
+    # Настройка основного логгера
     logger = logger_instance.setup(
         level=log_level,
         log_file=log_file,
         console=console_enabled,
         max_file_size=10  # 10 MB before rotation
     )
+    
+    # Добавляем отдельную настройку для media_filter
+    media_filter_logger = logging.getLogger('media_filter')
+    media_filter_logger.setLevel(getattr(logging, log_level.upper(), logging.INFO))
+    media_filter_logger.propagate = False  # Предотвращаем дублирование
+    
+    # Добавляем консольный обработчик
+    if console_enabled:
+        formatter = logging.Formatter(
+            fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(getattr(logging, log_level.upper(), logging.INFO))
+        console_handler.setFormatter(formatter)
+        media_filter_logger.addHandler(console_handler)
+    
+    # Добавляем файловый обработчик
+    if log_file:
+        formatter = logging.Formatter(
+            fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        max_bytes = 10 * 1024 * 1024  # 10 MB before rotation
+        file_handler = RotatingFileHandler(
+            log_file, 
+            maxBytes=max_bytes,
+            backupCount=5,
+            encoding='utf-8'
+        )
+        file_handler.setLevel(getattr(logging, log_level.upper(), logging.INFO))
+        file_handler.setFormatter(formatter)
+        media_filter_logger.addHandler(file_handler)
     
     logger.info(f"Robust logger initialized - Level: {log_level}, File: {log_file}, Console: {console_enabled}")
     return logger

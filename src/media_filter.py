@@ -7,7 +7,7 @@ from pathlib import Path
 class MediaFilter:
     def __init__(self, config_loader):
         self.config = config_loader
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger('media_filter')
         
         # Cache filter settings
         self.allowed_formats = [fmt.lower() for fmt in self.config.get_allowed_formats()]
@@ -18,6 +18,13 @@ class MediaFilter:
     def should_process_media(self, media_info: Dict) -> bool:
         """Check if media file passes all filters"""
         try:
+            # Проверяем наличие необходимых полей в media_info
+            required_fields = ['filename', 'file_size', 'type']
+            for field in required_fields:
+                if field not in media_info:
+                    self.logger.debug(f"Missing required field '{field}' in message {media_info.get('message_id', 'unknown')}")
+                    return False
+            
             # Check file type (audio/document)
             if not self._check_file_type(media_info):
                 self.logger.info(f"→ Filtered out (type): {media_info['filename']}")
@@ -98,7 +105,7 @@ class MediaFilter:
         # Ensure message_date is datetime object
         if isinstance(message_date, str):
             try:
-                message_date = datetime.fromisoformat(message_date)
+                message_date = datetime.fromisoformat(message_date.replace('Z', '+00:00'))
             except ValueError:
                 self.logger.warning(f"Invalid date format: {message_date}")
                 return True
@@ -129,17 +136,6 @@ class MediaFilter:
                 'to': self.date_filter.get('to')
             }
         }
-    
-    def format_file_size(self, size_bytes: int) -> str:
-        """Format file size in human readable format"""
-        if size_bytes < 1024:
-            return f"{size_bytes} B"
-        elif size_bytes < 1024 * 1024:
-            return f"{size_bytes / 1024:.1f} KB"
-        elif size_bytes < 1024 * 1024 * 1024:
-            return f"{size_bytes / (1024 * 1024):.1f} MB"
-        else:
-            return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
 
 
 def create_media_filter(config_loader) -> MediaFilter:
