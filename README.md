@@ -21,8 +21,9 @@ A Python-based application designed to download audio files (primarily music) fr
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repository-url>
-    cd TelegramDownloader
+    git clone telegram-music-downloader
+    cd telegram-music-downloader
+
     ```
 
 2.  **Create and activate a virtual environment:**
