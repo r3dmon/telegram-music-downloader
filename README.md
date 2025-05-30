@@ -13,8 +13,26 @@ A Python-based application designed to download audio files (primarily music) fr
 *   **Download & Message Tracking**: Tracks both downloaded files and processed messages using separate, robust tracker modules. Prevents duplicates and enables reliable recovery.
 *   **Robust Logging**: Comprehensive and resilient logging to both console and file, including log rotation and logger health checks.
 *   **Customizable File Naming**: Define templates for naming downloaded files.
+*   **Track Name Normalization & Cleanup**: Automatically cleans up and standardizes track names after download (optional, see below).
 *   **Secure Configuration**:
     *   Main application settings are managed in `src/config.yaml`.
+
+### Track Name Normalization & Cleanup
+
+The downloader can automatically clean and standardize the names of downloaded audio tracks. This feature removes unnecessary tags, extra spaces, technical info, and other "garbage" from file names, making your music library tidy and consistent.
+
+- **How it works:**
+    - Applies a series of normalization functions to each file name after download (removes message IDs, extra spaces, bracket artifacts, technical tags, etc).
+    - Helps prevent messy or unreadable filenames from Telegram uploads.
+- **How to enable:**
+    - In your `src/config.yaml` or `src/local_config.yaml`, set:
+      ```yaml
+      normalize_track_names: true
+      ```
+    - By default, this feature is **disabled** (`false`).
+- **When enabled:**
+    - All normalization and cleanup rules are applied automatically to every downloaded track.
+    - If disabled, file names are left as-is.
 
 ## Setup
 
