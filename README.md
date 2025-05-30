@@ -19,7 +19,7 @@ A Python-based application designed to download audio files (primarily music) fr
 
 ### Track Name Normalization & Cleanup
 
-The downloader can automatically clean and standardize the names of downloaded audio tracks. This feature removes unnecessary tags, extra spaces, technical info, and other "garbage" from file names, making your music library tidy and consistent.
+The downloader can automatically clean and standardize the names of downloaded audio tracks. This feature removes unnecessary tags, extra spaces, technical info, and other "garbage" from file names, making your downloaded music tidy and consistent.
 
 - **How it works:**
     - Applies a series of normalization functions to each file name after download (removes message IDs, extra spaces, bracket artifacts, technical tags, etc).
