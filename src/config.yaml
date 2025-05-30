@@ -32,3 +32,5 @@ logging:
   level: "INFO"  # DEBUG, INFO, WARNING, ERROR
   file: "./data/logs/downloader.log"
   console: true
+
+normalize_track_names: false # Enable or disable track names normalization after download

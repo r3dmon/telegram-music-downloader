@@ -2,6 +2,7 @@ import asyncio
 import logging
 from pathlib import Path
 from datetime import datetime
+import normalizer
 from typing import Dict, Optional, Any
 from telethon.tl.types import DocumentAttributeAudio, DocumentAttributeFilename
 
@@ -77,11 +78,21 @@ class TelegramDownloader:
             if downloaded_file:
                 # Update media_info with download date
                 media_info['download_date'] = datetime.now()
-                
+
+                # Normalize track name if enabled in config
+                if self.config.get_normalize_track_names():
+                    original_name = file_path.name
+                    normalized_name = normalizer.normalize_track_name(original_name)
+                    if normalized_name != original_name:
+                        normalized_path = file_path.with_name(normalized_name)
+                        file_path.rename(normalized_path)
+                        self.logger.info(f"Track name normalized: '{original_name}' -> '{normalized_name}'")
+                        file_path = normalized_path
+
                 # Track downloaded file in file_tracker
                 file_hash = self.file_tracker.track_downloaded_file(media_info, str(file_path))
                 
-                self.logger.info(f"✓ Downloaded successfully: {filename} {file_info} (hash: {file_hash[:8]}...)")
+                self.logger.info(f"✓ Downloaded successfully: {file_path.name} {file_info} (hash: {file_hash[:8]}...)")
                 
                 return {
                     'status': 'success',

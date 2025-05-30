@@ -49,6 +49,10 @@ class ConfigLoader:
                 print(f"Warning: Could not load or parse local config file {self.local_config_path}: {e}")
         else:
             print(f"Info: Local config file not found, using base config only: {self.local_config_path}")
+        
+        # Set normalization config defaults if not present
+        if 'normalize_track_names' not in self._config:
+            self._config['normalize_track_names'] = False
     
     def _validate_config(self) -> None:
         required_fields = {
