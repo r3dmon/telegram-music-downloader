@@ -148,3 +148,6 @@ class ConfigLoader:
     
     def get_full_session_path(self) -> str:
         return os.path.join(self.get_session_dir(), self.get_session_name())
+
+    def get_normalize_track_names(self) -> bool:
+        return bool(self._config.get('normalize_track_names', False))

@@ -1,6 +1,10 @@
 import re
 from typing import List
 
+def remove_message_id(text: str) -> str:
+    """Remove message IDs or trailing numbers that are not part of the title."""
+    return re.sub(r'_{2,}\d+$', ' ', text)
+
 def fix_extra_spaces(text: str) -> str:
     """Remove extra spaces and trim the string."""
     return re.sub(r'\s{2,}', ' ', text).strip()
@@ -21,10 +25,6 @@ def fix_underscores_with_spaces(text: str) -> str:
     """Replace underscores with spaces and remove extra spaces."""
     return re.sub(r'\s{2,}', ' ', text.replace('_', ' ')).strip()
 
-def remove_message_id(text: str) -> str:
-    """Remove message IDs or trailing numbers that are not part of the title."""
-    # Typical pattern: double underscores followed by digits at the end
-    return re.sub(r'__\d+$', '', text)
 
 def fix_extra_spaces(text: str) -> str:
     """Remove extra spaces and trim the string."""

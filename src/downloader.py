@@ -80,14 +80,15 @@ class TelegramDownloader:
                 media_info['download_date'] = datetime.now()
 
                 # Normalize track name if enabled in config
-                if self.config.get_normalize_track_names():
-                    original_name = file_path.name
-                    normalized_name = normalizer.normalize_track_name(original_name)
-                    if normalized_name != original_name:
-                        normalized_path = file_path.with_name(normalized_name)
-                        file_path.rename(normalized_path)
-                        self.logger.info(f"Track name normalized: '{original_name}' -> '{normalized_name}'")
-                        file_path = normalized_path
+                original_name = Path(file_path.name).stem
+                original_suffix = Path(file_path.name).suffix
+                normalized_name = normalizer.normalize_track_name(original_name)
+                if normalized_name != original_name:
+                    normalized_file_name = normalized_name + original_suffix
+                    normalized_path = file_path.with_name(normalized_file_name)
+                    file_path.rename(normalized_path)
+                    self.logger.info(f"Track name normalized: '{original_name}' -> '{normalized_name}'")
+                    file_path = normalized_path
 
                 # Track downloaded file in file_tracker
                 file_hash = self.file_tracker.track_downloaded_file(media_info, str(file_path))
