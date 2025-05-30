@@ -127,7 +127,7 @@ class TelegramMusicDownloader:
         """Process single channel - parse, filter, and download files"""
         self.logger.info(f"Processing channel: {channel_name} ({entity.title})")
         
-        # Получаем ID канала
+        # Get channel ID
         channel_id = str(entity.id)
         
         channel_result = {
@@ -144,7 +144,7 @@ class TelegramMusicDownloader:
         }
         
         try:
-            # Получаем последний обработанный ID для этого канала из message_tracker
+            # Get the last processed ID for this channel from message_tracker
             last_processed_id = self.message_tracker.get_last_processed_id(channel_id)
             if last_processed_id:
                 self.logger.info(f"Continuing from last processed message ID: {last_processed_id}")
@@ -164,17 +164,17 @@ class TelegramMusicDownloader:
                 messages_processed += 1
                 channel_result['messages_processed'] += 1
                 
-                # Обновляем последний обработанный ID сообщения и отмечаем сообщение как обработанное
+                # Update the last processed message ID and mark the message as processed
                 message_id = message_info['message_id']
                 self.message_tracker.mark_message_processed(channel_id, message_id)
                 channel_result['last_processed_id'] = message_id
                 
-                # Если сообщение не содержит медиа, пропускаем обработку файла
+                # If the message does not contain media, skip file processing
                 if not message_info.get('has_media', False):
                     self.logger.debug(f"Skipping message {message_id} - no media")
                     continue
                 
-                # Проверяем наличие всех необходимых полей для обработки медиа
+                # Check for all required fields to process media
                 if 'filename' not in message_info or 'file_size' not in message_info or 'type' not in message_info:
                     self.logger.debug(f"Skipping message {message_id} - missing required media fields")
                     continue

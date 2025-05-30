@@ -18,7 +18,7 @@ class MediaFilter:
     def should_process_media(self, media_info: Dict) -> bool:
         """Check if media file passes all filters"""
         try:
-            # Проверяем наличие необходимых полей в media_info
+            # Check for required fields in media_info
             required_fields = ['filename', 'file_size', 'type']
             for field in required_fields:
                 if field not in media_info:

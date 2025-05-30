@@ -78,7 +78,7 @@ class TelegramDownloader:
                 # Update media_info with download date
                 media_info['download_date'] = datetime.now()
                 
-                # Track downloaded file в file_tracker
+                # Track downloaded file in file_tracker
                 file_hash = self.file_tracker.track_downloaded_file(media_info, str(file_path))
                 
                 self.logger.info(f"✓ Downloaded successfully: {filename} {file_info} (hash: {file_hash[:8]}...)")

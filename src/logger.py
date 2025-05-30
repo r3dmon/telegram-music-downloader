@@ -246,7 +246,7 @@ def setup_logging(config_loader) -> logging.Logger:
     log_file = config_loader.get_log_file()
     console_enabled = config_loader.is_console_logging_enabled()
     
-    # Настройка основного логгера
+    # Main logger setup
     logger = logger_instance.setup(
         level=log_level,
         log_file=log_file,
@@ -254,12 +254,12 @@ def setup_logging(config_loader) -> logging.Logger:
         max_file_size=10  # 10 MB before rotation
     )
     
-    # Добавляем отдельную настройку для media_filter
+    # Add separate setup for media_filter
     media_filter_logger = logging.getLogger('media_filter')
     media_filter_logger.setLevel(getattr(logging, log_level.upper(), logging.INFO))
-    media_filter_logger.propagate = False  # Предотвращаем дублирование
+    media_filter_logger.propagate = False  # Prevent duplication
     
-    # Добавляем консольный обработчик
+    # Add console handler
     if console_enabled:
         formatter = logging.Formatter(
             fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -270,7 +270,7 @@ def setup_logging(config_loader) -> logging.Logger:
         console_handler.setFormatter(formatter)
         media_filter_logger.addHandler(console_handler)
     
-    # Добавляем файловый обработчик
+    # Add file handler
     if log_file:
         formatter = logging.Formatter(
             fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',

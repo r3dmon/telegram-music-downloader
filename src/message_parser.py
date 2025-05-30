@@ -44,29 +44,29 @@ class MessageParser:
         timeout = self.config.get_message_timeout()
         
         try:
-            # Определяем параметры для iter_messages
+            # Define parameters for iter_messages
             kwargs = {
                 'limit': limit,
-                'reverse': True  # От старых к новым
+                'reverse': True  # From oldest to newest
             }
             
-            # Получаем дату фильтрации из конфига
+            # Get filter date from config
             date_filter = self.config.get_date_filter()
-            date_from = date_filter.get('from')  # Это уже объект datetime или None
+            date_from = date_filter.get('from')  # This is already a datetime object or None
             
-            # Если есть last_processed_id, используем его (приоритет над датой)
+            # If last_processed_id exists, use it (priority over date)
             if last_processed_id is not None and isinstance(last_processed_id, int) and last_processed_id > 0:
                 kwargs['min_id'] = last_processed_id
                 self.logger.info(f"Parsing messages from channel {entity.title} starting after message ID {last_processed_id}")
-            # Если нет last_processed_id, но есть date_from, используем дату
+            # If there's no last_processed_id but date_from exists, use the date
             elif date_from is not None:
-                kwargs['offset_date'] = date_from  # Telethon ожидает datetime объект
+                kwargs['offset_date'] = date_from  # Telethon expects a datetime object
                 self.logger.info(f"Parsing messages from channel {entity.title} starting from date {date_from.strftime('%Y-%m-%d')}")
             else:
                 self.logger.info(f"Parsing messages from channel {entity.title} from the beginning")
             
             message_count = 0
-            # Используем kwargs для передачи аргументов
+            # Use kwargs to pass arguments
             async for message in self.client.iter_messages(entity, **kwargs):
                 message_count += 1
                 
@@ -75,7 +75,7 @@ class MessageParser:
                     self.logger.debug(f"Waiting {timeout}s before processing next message...")
                     await asyncio.sleep(timeout)
                 
-                # Базовая информация о сообщении, присутствует всегда
+                # Basic message info, always present
                 message_info = {
                     'message_id': message.id,
                     'channel_id': str(entity.id),
@@ -83,23 +83,23 @@ class MessageParser:
                     'has_media': bool(message.media),
                 }
                 
-                # Если сообщение без медиа, просто отдаем базовую информацию
+                # If the message has no media, just return basic info
                 if not message.media:
                     self.logger.debug(f"Message {message.id} has no media")
                     yield message_info
                     continue
                 
-                # Извлекаем информацию о медиа
+                # Extract media info
                 media_info = await self._extract_media_info(message)
                 if not media_info:
                     self.logger.debug(f"Failed to extract media info from message {message.id}")
                     yield message_info
                     continue
                 
-                # Объединяем базовую информацию и данные о медиа
+                # Combine basic info and media data
                 full_info = {**message_info, **media_info}
                 
-                # Отладочное сообщение
+                # Debug message
                 self.logger.debug(f"Found media in message {message.id}: {full_info.get('filename', 'unknown')} ({full_info.get('type', 'unknown')})")
                 
                 yield full_info

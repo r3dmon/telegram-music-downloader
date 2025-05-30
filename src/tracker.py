@@ -12,11 +12,11 @@ class MessageTracker:
         self.tracker_file = Path(tracker_file)
         self.logger = logging.getLogger(__name__)
         
-        # Инициализация данных
-        self.processed_messages = {}  # id канала -> множество обработанных сообщений
-        self.last_processed_id = {}  # id канала -> последний обработанный id
+        # Data initialization
+        self.processed_messages = {}  # channel id -> set of processed messages
+        self.last_processed_id = {}  # channel id -> last processed id
         
-        # Загрузка существующих данных
+        # Load existing data
         self._load_tracker_data()
         self._ensure_tracker_dir()
     
@@ -34,15 +34,15 @@ class MessageTracker:
             with open(self.tracker_file, 'r', encoding='utf-8') as file:
                 data = json.load(file)
                 
-                # Загрузка обработанных сообщений для каждого канала
+                # Load processed messages for each channel
                 for channel_id, messages in data.items():
-                    # Конвертируем строковые ID каналов в строки для единообразия
+                    # Convert channel IDs to strings for consistency
                     channel_id_str = str(channel_id)
                     
-                    # Преобразуем список ID сообщений в множество для быстрого поиска
+                    # Convert list of message IDs to set for fast lookup
                     self.processed_messages[channel_id_str] = set(messages)
                     
-                    # Определяем последний обработанный ID как максимальный из множества
+                    # Set last processed ID as the maximum from the set
                     if messages:
                         self.last_processed_id[channel_id_str] = max(messages)
                 
@@ -59,18 +59,18 @@ class MessageTracker:
     def _save_tracker_data(self) -> None:
         """Save tracking data to JSON file"""
         try:
-            # Преобразуем множества в списки для сериализации JSON
-            # Структура: channel_id -> [message_id1, message_id2, ...]
+            # Convert sets to lists for JSON serialization
+            # Structure: channel_id -> [message_id1, message_id2, ...]
             processed_messages_json = {}
             for channel_id, messages in self.processed_messages.items():
                 processed_messages_json[channel_id] = sorted(list(messages))
             
-            # Записываем во временный файл
+            # Write to a temporary file
             temp_file = self.tracker_file.with_suffix('.tmp')
             with open(temp_file, 'w', encoding='utf-8') as file:
                 json.dump(processed_messages_json, file, indent=2, ensure_ascii=False)
             
-            # Заменяем оригинальный файл
+            # Replace the original file
             temp_file.replace(self.tracker_file)
             self.logger.debug("Message tracker data saved successfully")
             
@@ -90,10 +90,10 @@ class MessageTracker:
         if channel_id_str not in self.processed_messages:
             self.processed_messages[channel_id_str] = set()
         
-        # Добавляем ID сообщения в множество обработанных для данного канала
+        # Add message ID to the set of processed for this channel
         self.processed_messages[channel_id_str].add(message_id)
         
-        # Обновляем последний обработанный ID, если текущий больше
+        # Update last processed ID if the current one is greater
         current_last = self.last_processed_id.get(channel_id_str, 0)
         if message_id > current_last:
             self.last_processed_id[channel_id_str] = message_id
@@ -251,9 +251,9 @@ class FileTracker:
             if file_path.exists():
                 return True, f"File already downloaded: {existing_file['file_path']}"
             else:
-                # Файл в трекере есть, но на диске отсутствует
+                # File is tracked but missing on disk
                 self.logger.warning(f"File tracked but missing on disk: {existing_file['file_path']}")
-                return False, ""  # Разрешаем повторную загрузку
+                return False, ""  # Allow re-download
         
         return False, ""
     
