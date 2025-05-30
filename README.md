@@ -10,23 +10,21 @@ A Python-based application designed to download audio files (primarily music) fr
     *   Filter by specific file formats (e.g., `.mp3`, `.flac`, `.wav`).
     *   Filter by file size (min/max MB).
     *   Filter by message date range.
-*   **Download Tracking**: Keeps track of successfully downloaded files to prevent duplicates (details depend on `tracker.py` implementation).
-*   **Robust Logging**: Comprehensive logging to both console and file, with log rotation and health checks for the logger.
+*   **Download & Message Tracking**: Tracks both downloaded files and processed messages using separate, robust tracker modules. Prevents duplicates and enables reliable recovery.
+*   **Robust Logging**: Comprehensive and resilient logging to both console and file, including log rotation and logger health checks.
 *   **Customizable File Naming**: Define templates for naming downloaded files.
 *   **Secure Configuration**:
     *   Main application settings are managed in `src/config.yaml`.
-    *   Sensitive credentials (like Telegram API ID and Hash) are intended to be stored in `src/local_config.yaml`, which is excluded from version control by `.gitignore`.
 
 ## Setup
 
-1.  **Clone the repository:**
+1. **Clone the repository:**
     ```bash
-    git clone telegram-music-downloader
+    git clone https://github.com/yourusername/telegram-music-downloader.git
     cd telegram-music-downloader
-
     ```
 
-2.  **Create and activate a virtual environment:**
+2. **Create and activate a virtual environment:**
     ```bash
     python -m venv venv
     # On Windows
@@ -35,57 +33,65 @@ A Python-based application designed to download audio files (primarily music) fr
     source venv/bin/activate
     ```
 
-3.  **Install dependencies:**
+3. **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
 
-4.  **Configure the application:**
-    *   Rename or copy `src/config.yaml` (if it contains example values) or edit it.
-    *   Create `src/local_config.yaml` and add your Telegram `api_id` and `api_hash`.
-        Example `src/local_config.yaml`:
-        ```yaml
-        telegram:
-          api_id: 1234567
-          api_hash: "your_api_hash_here"
-          # phone_number: "+1234567890" # If needed for login
-        ```
+4. **Configure the application:**
+    - Edit `src/config.yaml` for main settings (channels, filters, download directory, etc).
+    - Create `src/local_config.yaml` and add your Telegram `api_id` and `api_hash` (and optionally `phone_number`).
+      Example `src/local_config.yaml`:
+      ```yaml
+      telegram:
+        api_id: 1234567
+        api_hash: "your_api_hash_here"
+        # phone_number: "+1234567890" # If needed for login
+      ```
 
 ## Usage
 
-Run the main script from the project's root directory:
+- Run the main script from the project's root directory:
+    ```bash
+    python src/main.py
+    ```
+- To use a custom config file:
+    ```bash
+    python src/main.py --config path/to/your/custom_config.yaml
+    ```
 
-```bash
-python src/main.py
+- The application will automatically manage sessions, track downloads and messages, and log all activity. Statistics are available after each run.
+
+## Project Structure
+
 ```
-
-You can customize the path to the configuration file using the `--config` argument:
-
-```bash
-python src/main.py --config path/to/your/custom_config.yaml
-```
-
-## Project Structure (Simplified)
-
-```
-TelegramDownloader/
+telegram-music-downloader/
 ├── .gitignore
 ├── README.md
 ├── requirements.txt
 ├── src/
-│   ├── main.py               # Main application entry point
+│   ├── main.py               # Async main entry point
 │   ├── config.yaml           # Main configuration file (template/defaults)
 │   ├── local_config.yaml     # Local configuration with secrets (gitignored)
 │   ├── config_loader.py      # Loads and merges configurations
-│   ├── client.py             # Telegram client setup
-│   ├── downloader.py         # File downloading logic
-│   ├── logger.py             # Logging setup and RobustLogger
-│   ├── media_filter.py       # Media filtering logic
-│   ├── message_parser.py     # Parses messages for media
-│   ├── session_manager.py    # Manages Telegram sessions
-│   └── tracker.py            # Tracks downloaded files
+│   ├── client.py             # Async Telegram client setup
+│   ├── downloader.py         # Async file downloading logic
+│   ├── logger.py             # Robust logging (rotation, health checks)
+│   ├── media_filter.py       # Flexible, configurable media filtering
+│   ├── message_parser.py     # Async parsing of channel messages for media
+│   ├── session_manager.py    # Manages and backs up Telegram sessions
+│   └── tracker.py            # Tracks downloaded files and processed messages
 └── data/                     # Default directory for downloads, logs, sessions
     ├── downloads/
     ├── logs/
     └── sessions/
 ```
+
+## Requirements
+
+- Python 3.9+
+- [Telethon](https://github.com/LonamiWebs/Telethon) and other dependencies in `requirements.txt`
+
+## License
+
+MIT
