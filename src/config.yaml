@@ -20,6 +20,8 @@ naming:
   template: "{original_name}__{message_id}"
   date_format: "%Y%m%d_%H%M%S"
 
+normalize_track_names: false # Enable or disable track names normalization after download
+
 filters:
   file_types: ["audio", "document"]  # audio for audio files, document for files
   formats: [".flac", ".wav", ".aiff", ".m4a", ".mp3"]
@@ -34,5 +36,3 @@ logging:
   level: "INFO"  # DEBUG, INFO, WARNING, ERROR
   file: "./data/logs/downloader.log"
   console: true
-
-normalize_track_names: false # Enable or disable track names normalization after download
