@@ -1,5 +1,7 @@
 # Telegram Music Downloader
 
+> **Note:** This project was developed with AI assistance.
+
 A Python-based application designed to download audio files (primarily music) from specified Telegram channels. It offers features like advanced filtering, download tracking, and robust logging.
 
 ## Features
@@ -66,6 +68,27 @@ The downloader can automatically clean and standardize the names of downloaded a
         api_hash: "your_api_hash_here"
         # phone_number: "+1234567890" # If needed for login
       ```
+
+### How to Get Channel or Group ID
+
+To specify channels in `config.yaml`, you need their numeric IDs. Here's how to get them:
+
+1. Forward any message from the target channel to @ShowJsonBot
+2. The bot will reply with JSON data containing channel information
+3. Look for `"chat":{"id":-1001234567890}` in the response
+4. Use the number after `"id":` (including the minus sign)
+
+**Important Notes:**
+- Channel IDs are usually negative numbers (e.g., `-1001234567890`)
+- Public channels can be specified by username (e.g., `@channelname`) or numeric ID
+- Private channels/groups must use numeric ID
+- In `config.yaml`, list channel IDs under the `channels:` section:
+  ```yaml
+  channels:
+    - -1001234567890  # Private channel ID
+    - @publicchannel  # Public channel username
+    - -1009876543210  # Another channel ID
+  ```
 
 ## Usage
 
