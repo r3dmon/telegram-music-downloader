@@ -7,7 +7,9 @@ telegram:
   two_factor_auth: true  # Enable if you have 2FA
 
 channels:
-  - -0000000000000
+  - -1001234567890  # Private channel ID (example)
+  - @musicchannel    # Public channel username (example)
+  - -1009876543210  # Private group ID (example)
 
 download:
   output_dir: "./data/downloads"
