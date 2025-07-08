@@ -25,26 +25,9 @@ def fix_underscores_with_spaces(text: str) -> str:
     """Replace underscores with spaces and remove extra spaces."""
     return re.sub(r'\s{2,}', ' ', text.replace('_', ' ')).strip()
 
-
-def fix_extra_spaces(text: str) -> str:
-    """Remove extra spaces and trim the string."""
-    return re.sub(r'\s{2,}', ' ', text).strip()
-
-def fix_spaces_in_brackets(text: str) -> str:
-    """Remove spaces after opening and before closing brackets."""
-    text = re.sub(r'(\[|\()\s+', r'\1', text)
-    text = re.sub(r'\s+(\]|\))', r'\1', text)
-    return text
-
-def fix_missing_spaces_around_brackets(text: str) -> str:
-    """Ensure spaces around brackets where needed."""
-    text = re.sub(r'(?<!\s)(?=\[|\()', ' ', text)
-    text = re.sub(r'(?<=\]|\))(?=\S)', ' ', text)
-    return text.strip()
-
-def fix_underscores_with_spaces(text: str) -> str:
-    """Replace underscores with spaces and remove extra spaces."""
-    return re.sub(r'\s{2,}', ' ', text.replace('_', ' ')).strip()
+def capitalize_words(text: str) -> str:
+    """Capitalize each word in the text."""
+    return ' '.join(word.capitalize() for word in text.split())
 
 def wrap_and_move_mix_types(file_name: str) -> str:
     """Wrap mix types in parentheses and move them to the end if needed."""
